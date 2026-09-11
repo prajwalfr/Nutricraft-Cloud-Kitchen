@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  name              String
+  passwordHash      String
+  role              String   @default("CUSTOMER") // CUSTOMER, KITCHEN_STAFF, ADMIN
+  phone             String?
+  address           String?
+  dietaryPreference String?  // Veg, Non-Veg, Vegan, Keto, High-Protein
+  createdAt         DateTime @default(now())
+}
+
+model Dish {
+  id            String           @id @default(uuid())
+  name          String
+  description   String
+  category      String           // High Protein, Low Carb, Balanced
+  cuisine       String           // North Indian, South Indian, East Indian, West Indian
+  dietary       String           // Veg, Non-Veg, Vegan
+  basePrice     Float
+  baseCalories  Int
+  baseProtein   Float
+  baseCarbs     Float
+  baseFats      Float
+  fiber         Float            @default(5.0)  // grams
+  sodium        Int              @default(450)  // mg
+  glycemicIndex String           @default("Low") // Low, Medium, High
+  allergens     String           @default("[]") // JSON string of allergen names (e.g. ["Dairy", "Nuts"])
+  imageUrl      String
+  isAvailable   Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  ingredients   DishIngredient[]
+}
+
+model CustomizationOption {
+  id            String  @id @default(uuid())
+  category      String  // BASE_CARB, EXTRA_PROTEIN, OIL_GHEE
+  optionName    String
+  extraPrice    Float   @default(0)
+  extraCalories Int     @default(0)
+  extraProtein  Float   @default(0)
+  extraCarbs    Float   @default(0)
+  extraFats     Float   @default(0)
+}
+
+model Ingredient {
+  id                 String           @id @default(uuid())
+  name               String           @unique
+  currentStock       Float            // in kg or units
+  minimumThreshold   Float            // in kg or units
+  unit               String           @default("kg") // kg, units, litres
+  lastRestockedAt    DateTime         @default(now())
+  dishLinks          DishIngredient[]
+}
+
+model DishIngredient {
+  id           String     @id @default(uuid())
+  dishId       String
+  dish         Dish       @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  amountNeeded Float      // Quantity required per dish serving
+}
+
+model Order {
+  id                     String      @id @default(uuid())
+  orderNumber            String      @unique
+  customerName           String
+  customerPhone          String
+  address                String
+  deliverySlot           String
+  totalPrice             Float
+  totalCalories          Int
+  totalProtein           Float
+  totalCarbs             Float
+  totalFats              Float
+  status                 String      @default("PLACED") // PLACED, PREPARING, DISPATCHED, DELIVERED
+  isSubscriptionDelivery Boolean     @default(false)
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+  items                  OrderItem[]
+  payments               Payment[]
+}
+
+model OrderItem {
+  id                   String @id @default(uuid())
+  orderId              String
+  order                Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  dishId               String
+  dishName             String
+  quantity             Int
+  price                Float
+  calories             Int
+  protein              Float
+  carbs                Float
+  fats                 Float
+  customizationSummary String @default("{}")
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount        Float
+  paymentMethod String   @default("UPI") // UPI, CARD, COD, NETBANKING
+  paymentStatus String   @default("SUCCESS") // SUCCESS, PENDING, FAILED, REFUNDED
+  transactionId String   @default(uuid())
+  createdAt     DateTime @default(now())
+}
+
+model Subscription {
+  id           String   @id @default(uuid())
+  userName     String
+  userPhone    String
+  userAddress  String
+  planType     String   // 1x_MEAL_DAILY, 2x_MEAL_DAILY
+  activeDays   String   // MON_FRI, MON_SAT, ALL_DAYS
+  deliverySlot String
+  startDate    String
+  endDate      String
+  pausedDates  String   @default("[]") // JSON string of date strings YYYY-MM-DD
+  status       String   @default("ACTIVE") // ACTIVE, PAUSED, EXPIRED
+  monthlyPrice Float
+  createdAt    DateTime @default(now())
+}
+
