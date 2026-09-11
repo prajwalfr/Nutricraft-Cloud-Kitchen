@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
+import { INITIAL_DISHES, GLOBAL_CUSTOMIZATION_OPTIONS } from './data/dishesData.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -15,6 +16,20 @@ const io = new Server(httpServer, {
 
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5000;
+
+async function seedIfEmpty() {
+  const count = await prisma.dish.count();
+  if (count === 0) {
+    console.log('🌱 Empty DB — auto-seeding 30 dishes...');
+    for (const dish of INITIAL_DISHES) {
+      await prisma.dish.create({ data: dish });
+    }
+    for (const option of GLOBAL_CUSTOMIZATION_OPTIONS) {
+      await prisma.customizationOption.create({ data: option });
+    }
+    console.log('✅ Auto-seed complete!');
+  }
+}
 
 app.use(cors());
 app.use(express.json());
@@ -306,6 +321,11 @@ app.get('/api/kitchen/forecast', async (req, res) => {
   }
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`🚀 NutriCraft Server listening on port ${PORT}`);
+seedIfEmpty().then(() => {
+  httpServer.listen(PORT, () => {
+    console.log(`🚀 NutriCraft Server listening on port ${PORT}`);
+  });
+}).catch((e) => {
+  console.error('❌ Seed failed:', e);
+  process.exit(1);
 });
