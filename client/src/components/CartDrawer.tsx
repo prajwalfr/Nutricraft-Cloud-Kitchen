@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, Flame, Dumbbell, MapPin, Clock } from 'lucide-react';
 import { CartItem } from '../types';
-import { api } from '../services/api';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -81,10 +80,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         }))
       };
 
-      const createdOrder = await api.createOrder(orderPayload);
+      // Mock order creation — no backend needed
+      const mockOrderId = `mock-${Date.now()}`;
+      console.log('Order placed (mock):', orderPayload);
       setIsSubmitting(false);
       setCart([]);
-      onOrderPlaced(createdOrder.id);
+      onOrderPlaced(mockOrderId);
       onClose();
     } catch (err) {
       console.error(err);

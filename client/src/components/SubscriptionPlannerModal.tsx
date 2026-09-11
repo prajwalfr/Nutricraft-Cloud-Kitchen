@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { X, Calendar, Clock, Check, AlertCircle, ShieldCheck } from 'lucide-react';
-import { api } from '../services/api';
 
 interface SubscriptionPlannerModalProps {
   isOpen: boolean;
@@ -61,25 +60,11 @@ export const SubscriptionPlannerModal: React.FC<SubscriptionPlannerModalProps> =
 
   const handleConfirm = async () => {
     setLoading(true);
-    try {
-      await api.createSubscription({
-        userName,
-        userPhone,
-        userAddress,
-        planType,
-        activeDays,
-        deliverySlot,
-        startDate: calendarDays[0].dateStr,
-        endDate: calendarDays[29].dateStr,
-        monthlyPrice: discountedPrice
-      });
+    setTimeout(() => {
       setLoading(false);
       onSuccess();
       onClose();
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-    }
+    }, 600);
   };
 
   return (

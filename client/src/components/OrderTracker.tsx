@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Radio, Clock, CheckCircle2, Bike, ChefHat, Package, MapPin, Flame, Dumbbell, ArrowLeft } from 'lucide-react';
 import { Order } from '../types';
-import { api } from '../services/api';
-import { socket } from '../services/socket';
+import { MOCK_ORDERS } from '../services/mockData';
 
 interface OrderTrackerProps {
   currentOrderId: string | null;
@@ -10,55 +9,55 @@ interface OrderTrackerProps {
 }
 
 export const OrderTracker: React.FC<OrderTrackerProps> = ({ currentOrderId, onBackToMenu }) => {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(MOCK_ORDERS[0]);
+  const [loading, setLoading] = useState(false);
 
-  // Fetch orders and select current
-  const fetchOrders = async () => {
-    try {
-      const data = await api.getOrders();
-      setOrders(data);
-      if (data.length > 0) {
-        if (currentOrderId) {
-          const match = data.find((o) => o.id === currentOrderId);
-          setSelectedOrder(match || data[0]);
-        } else {
-          setSelectedOrder(data[0]);
-        }
+  useEffect(() => {
+    if (currentOrderId) {
+      const match = orders.find((o) => o.id === currentOrderId);
+      if (match) {
+        setSelectedOrder(match);
+      } else {
+        // If it was just created via mock cart
+        const newMockOrder: Order = {
+          id: currentOrderId,
+          orderNumber: `NC-${Math.floor(1000 + Math.random() * 9000)}`,
+          customerName: 'Prajwal (You)',
+          customerPhone: '+91 98765 43210',
+          address: 'Indiranagar 100ft Road, Bengaluru',
+          deliverySlot: '12:30 PM - 01:30 PM',
+          totalPrice: 420,
+          totalCalories: 560,
+          totalProtein: 42,
+          totalCarbs: 45,
+          totalFats: 16,
+          status: 'PREPARING',
+          isSubscriptionDelivery: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          items: [
+            {
+              id: 'item-1',
+              dishId: 'd2',
+              dishName: 'Tandoori Chicken Breast & Mint Salad',
+              quantity: 1,
+              price: 320,
+              calories: 420,
+              protein: 48,
+              carbs: 12,
+              fats: 14,
+              customizationSummary: '{"carbBase":"Brown Basmati Rice","extraProtein":"+50g Chicken","oilGhee":"Low Oil"}'
+            }
+          ]
+        };
+        setOrders((prev) => [newMockOrder, ...prev]);
+        setSelectedOrder(newMockOrder);
       }
-      setLoading(false);
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
+    } else if (orders.length > 0) {
+      setSelectedOrder(orders[0]);
     }
-  };
-
-  useEffect(() => {
-    fetchOrders();
   }, [currentOrderId]);
-
-  // Connect WebSockets room for real-time order updates
-  useEffect(() => {
-    if (!selectedOrder) return;
-
-    socket.emit('join:order', selectedOrder.id);
-
-    const handleStatusChange = (updatedOrder: Order) => {
-      if (updatedOrder.id === selectedOrder.id) {
-        setSelectedOrder(updatedOrder);
-      }
-      setOrders((prev) => prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o)));
-    };
-
-    socket.on('order:status_changed', handleStatusChange);
-    socket.on('order:updated', handleStatusChange);
-
-    return () => {
-      socket.off('order:status_changed', handleStatusChange);
-      socket.off('order:updated', handleStatusChange);
-    };
-  }, [selectedOrder?.id]);
 
   if (loading) {
     return (

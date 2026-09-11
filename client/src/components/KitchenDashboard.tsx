@@ -1,111 +1,44 @@
-import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, ChefHat, Bike, CheckCircle2, AlertTriangle, ShieldCheck, Flame, Dumbbell, Radio, BarChart3, ToggleLeft, ToggleRight, Sparkles, PackageCheck, IndianRupee } from 'lucide-react';
+import React, { useState } from 'react';
+import { LayoutDashboard, ChefHat, Bike, CheckCircle2, AlertTriangle, ShieldCheck, Flame, Dumbbell, BarChart3, ToggleLeft, ToggleRight, Sparkles, PackageCheck, IndianRupee } from 'lucide-react';
 import { Order, Dish, PrepForecast, Ingredient } from '../types';
-import { api } from '../services/api';
-import { socket } from '../services/socket';
+import { MOCK_ORDERS, MOCK_DISHES, MOCK_FORECAST, MOCK_INVENTORY } from '../services/mockData';
 
 export const KitchenDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'kanban' | 'menu' | 'forecast' | 'inventory'>('kanban');
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [dishes, setDishes] = useState<Dish[]>([]);
-  const [forecast, setForecast] = useState<PrepForecast | null>(null);
-  const [inventory, setInventory] = useState<Ingredient[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
+  const [dishes, setDishes] = useState<Dish[]>(MOCK_DISHES);
+  const [forecast, setForecast] = useState<PrepForecast | null>(MOCK_FORECAST);
+  const [inventory, setInventory] = useState<Ingredient[]>(MOCK_INVENTORY);
+  const [loading, setLoading] = useState(false);
 
-  // Fetch initial data
-  const fetchData = async () => {
-    try {
-      const [orderList, dishList, prepData, invData] = await Promise.all([
-        api.getOrders(),
-        api.getDishes(),
-        api.getPrepForecast(),
-        api.getInventory().catch(() => [])
-      ]);
-      setOrders(orderList);
-      setDishes(dishList);
-      setForecast(prepData);
-      setInventory(invData);
-      setLoading(false);
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-
-    // Socket.io Real-time Event Listeners
-    const handleNewOrder = (newOrder: Order) => {
-      setOrders((prev) => [newOrder, ...prev]);
-      api.getPrepForecast().then(setForecast).catch(console.error);
-      api.getInventory().then(setInventory).catch(console.error);
-    };
-
-    const handleOrderUpdated = (updatedOrder: Order) => {
-      setOrders((prev) => prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o)));
-      api.getPrepForecast().then(setForecast).catch(console.error);
-    };
-
-    const handleDishUpdated = (updatedDish: Dish) => {
-      setDishes((prev) => prev.map((d) => (d.id === updatedDish.id ? updatedDish : d)));
-    };
-
-    const handleInventoryUpdated = (updatedInventory: Ingredient[] | Ingredient) => {
-      if (Array.isArray(updatedInventory)) {
-        setInventory(updatedInventory);
-      } else {
-        setInventory((prev) => prev.map((i) => (i.id === updatedInventory.id ? updatedInventory : i)));
-      }
-    };
-
-    socket.on('order:created', handleNewOrder);
-    socket.on('order:updated', handleOrderUpdated);
-    socket.on('dish:updated', handleDishUpdated);
-    socket.on('inventory:updated', handleInventoryUpdated);
-
-    return () => {
-      socket.off('order:created', handleNewOrder);
-      socket.off('order:updated', handleOrderUpdated);
-      socket.off('dish:updated', handleDishUpdated);
-      socket.off('inventory:updated', handleInventoryUpdated);
-    };
-  }, []);
-
-  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
-    try {
-      await api.updateOrderStatus(orderId, newStatus);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleRestock = async (ingredientId: string, addedQty: number) => {
-    try {
-      await api.restockIngredient(ingredientId, addedQty);
-      const invData = await api.getInventory();
-      setInventory(invData);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleToggleStock = async (dishId: string) => {
-    try {
-      await api.toggleDishStock(dishId);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-16 text-center text-slate-400">
-        <Radio className="w-8 h-8 animate-spin mx-auto text-amber-400 mb-2" />
-        <p className="font-bold">Loading Live Kitchen Management Board...</p>
-      </div>
+  const handleUpdateStatus = (orderId: string, newStatus: string) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus as any } : o))
     );
-  }
+  };
+
+  const handleRestock = (ingredientId: string, addedQty: number) => {
+    setInventory((prev) =>
+      prev.map((i) => {
+        if (i.id === ingredientId) {
+          const updatedStock = i.currentStock + addedQty;
+          return {
+            ...i,
+            currentStock: updatedStock,
+            isLowStock: updatedStock < i.minimumThreshold,
+            lastRestockedAt: 'Just now'
+          };
+        }
+        return i;
+      })
+    );
+  };
+
+  const handleToggleStock = (dishId: string) => {
+    setDishes((prev) =>
+      prev.map((d) => (d.id === dishId ? { ...d, isAvailable: !d.isAvailable } : d))
+    );
+  };
 
   // Kanban Columns
   const columns = [

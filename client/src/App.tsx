@@ -1,66 +1,30 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Header } from './components/Header';
 import { StatsBanner } from './components/StatsBanner';
 import { MenuGrid } from './components/MenuGrid';
-import { DishCard } from './components/DishCard';
 import { MealBuilderModal } from './components/MealBuilderModal';
 import { SubscriptionPlannerModal } from './components/SubscriptionPlannerModal';
 import { CartDrawer } from './components/CartDrawer';
 import { OrderTracker } from './components/OrderTracker';
 import { KitchenDashboard } from './components/KitchenDashboard';
-import { Dish, CustomizationOption, CartItem, SelectedCustomizations, Order } from './types';
-import { api } from './services/api';
-import { socket } from './services/socket';
+import { Dish, CustomizationOption, CartItem, SelectedCustomizations } from './types';
+import { MOCK_DISHES, MOCK_CUSTOMIZATION_OPTIONS, MOCK_ORDERS } from './services/mockData';
 import { calculateMealMacros } from './utils/macroCalculator';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'menu' | 'tracker' | 'kitchen'>('menu');
-  const [dishes, setDishes] = useState<Dish[]>([]);
-  const [customizationOptions, setCustomizationOptions] = useState<CustomizationOption[]>([]);
-  
+  const [dishes, setDishes] = useState<Dish[]>(MOCK_DISHES);
+  const [customizationOptions] = useState<CustomizationOption[]>(MOCK_CUSTOMIZATION_OPTIONS);
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
   const [customizingDish, setCustomizingDish] = useState<Dish | null>(null);
 
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
-  const [activeOrdersCount, setActiveOrdersCount] = useState<number>(0);
-
-  // Initial load
-  useEffect(() => {
-    api.getDishes().then(setDishes).catch(console.error);
-    api.getCustomizationOptions().then(setCustomizationOptions).catch(console.error);
-    api.getOrders().then((orders) => {
-      const active = orders.filter((o) => o.status !== 'DELIVERED').length;
-      setActiveOrdersCount(active);
-    }).catch(console.error);
-
-    // Socket listeners for menu stock updates and active order counts
-    const handleDishUpdated = (updatedDish: Dish) => {
-      setDishes((prev) => prev.map((d) => (d.id === updatedDish.id ? updatedDish : d)));
-    };
-
-    const handleOrderCreated = () => {
-      setActiveOrdersCount((prev) => prev + 1);
-    };
-
-    const handleOrderUpdated = (order: Order) => {
-      api.getOrders().then((orders) => {
-        const active = orders.filter((o) => o.status !== 'DELIVERED').length;
-        setActiveOrdersCount(active);
-      }).catch(console.error);
-    };
-
-    socket.on('dish:updated', handleDishUpdated);
-    socket.on('order:created', handleOrderCreated);
-    socket.on('order:updated', handleOrderUpdated);
-
-    return () => {
-      socket.off('dish:updated', handleDishUpdated);
-      socket.off('order:created', handleOrderCreated);
-      socket.off('order:updated', handleOrderUpdated);
-    };
-  }, []);
+  const [activeOrdersCount, setActiveOrdersCount] = useState<number>(
+    MOCK_ORDERS.filter((o) => o.status !== 'DELIVERED').length
+  );
 
   const handleOpenCustomizeModal = (dish: Dish) => {
     setCustomizingDish(dish);
